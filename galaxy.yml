@@ -1,0 +1,17 @@
+namespace: ngenen
+name: cloudflare_secops
+version: 1.0.0
+readme: README.md
+authors:
+- Nicolás Genen <ngenen@gmail.com>
+description: A collection focused on security automation for cloudflare.
+license:
+- GPL-3.0-or-later
+tags:
+  - cloudflare
+  - security
+  - secops
+dependencies: {}
+repository: https://github.com/ngenen/cloudflare_secops
+homepage: https://github.com/ngenen/cloudflare_secops
+issues: https://github.com/ngenen/cloudflare_secops/issues

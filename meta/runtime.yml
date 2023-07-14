@@ -1,0 +1,5 @@
+requires_ansible: '>=2.13.0'
+
+action_groups:
+   cloudflare:
+     - access_rule
