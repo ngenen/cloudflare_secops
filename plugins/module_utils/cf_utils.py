@@ -8,7 +8,7 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-from ansible.module_utils.basic import env_fallback, missing_required_lib
+from ansible.module_utils.basic import env_fallback
 
 
 def cf_handle_errors(module, err):
@@ -32,4 +32,3 @@ def cf_parameters():
                    fallback=(env_fallback, ['CF_API_KEY']),
                    ),
     )
-
