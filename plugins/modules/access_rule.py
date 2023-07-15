@@ -12,7 +12,7 @@ from ansible_collections.ngenen.cloudflare_secops.plugins.module_utils.cf_access
 
 DOCUMENTATION = r'''
 module: access_rule
-short_description: Manage Account-Level Access Rules
+short_description: Manage Access Rules
 description:
 - Add, delete and update access rules for CloudFlare WAF.
 author:
@@ -22,6 +22,7 @@ options:
     description:
     - The module call parameters.
     - This is dictionary with key/value pair.
+    - Possible values are zone, target, value, mode and notes.
     type: dict
   email:
     description:
@@ -38,14 +39,19 @@ options:
     -  Whether to add (C(present)), remove (C(absent)) or (C(update)) the access rule.
     choices: [absent, present, update]
     type: str
-
+  context:
+    description:
+    -  The context for the current task, could be (C(account)) (this is default), (C(zone)) or (C(user)).
+    choices: [account, zone, user]
+    type: str
+    
 notes:
 - This is a work in progress, please report any issue at https://github.com/ngenen/cloudflare_secops/issues.
 
 '''
 
 EXAMPLES = r'''
-- name: Creating a rule to block IP
+- name: Creating Access Rule (Account)
   ngenen.cloudflare_secops.access_rule:
     email: '{{ email }}'
     token: '{{ token }}'
@@ -56,23 +62,39 @@ EXAMPLES = r'''
       mode: 'block'
       notes: 'Example IP Block'
 
-- name: Updating the mode and notes for a rule that is searched by target and value combination.
+- name: Creating Access Rule (Zone)
+  ngenen.cloudflare_secops.access_rule:
+    email: '{{ email }}'
+    token: '{{ token }}'
+    state: present
+    context: zone
+    params:
+      zone: 'example.com'
+      target: 'country'
+      value: 'US'
+      mode: 'challenge'
+      notes: 'Example - Challenge US Country'
+      
+- name: Updating Access Rule (User)
   ngenen.cloudflare_secops.access_rule:
     email: '{{ email }}'
     token: '{{ token }}'
     state: update
+    context: user
     params:
       target: 'ip'
       value: '1.2.3.4'
       mode: 'challenge'
-      notes: 'Updated from block to challenge'
+      notes: 'Updated to challenge'
 
-- name: Deleting a rule searched by target and value.
+- name: Deleting Access Rule (Zone)
   ngenen.cloudflare_secops.access_rule:
     email: '{{ email }}'
     token: '{{ token }}'
     state: absent
+    context: zone
     params:
+      zone: 'example.com'
       target: 'ip'
       value: '1.2.3.4'
 '''

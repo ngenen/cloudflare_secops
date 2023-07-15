@@ -18,7 +18,7 @@ This collection has been tested against following Ansible versions: **>=2.15.1**
 
 ## Features
 
-- Account - Access Rules [https://api.cloudflare.com/client/v4/accounts/{account_identifier}/firewall/access_rules/rules]
+- Access Rules (Account, Zone, User)
 
 ## Usage
 
@@ -32,7 +32,7 @@ Example Playbook
     email: '<account_email>'
     token: '<account_global_apikey>'
   tasks:
-    - name: Creating CF Access Rule (Target IP)
+    - name: Creating Access Rule (Account)
       ngenen.cloudflare_secops.access_rule:
         email: '{{ email }}'
         token: '{{ token }}'
@@ -43,45 +43,41 @@ Example Playbook
           mode: 'block'
           notes: 'Example IP Block'
 
-    - name: Creating CF Access Rule (Target Country)
+    - name: Creating Access Rule (Zone)
       ngenen.cloudflare_secops.access_rule:
         email: '{{ email }}'
         token: '{{ token }}'
         state: present
+        context: zone
         params:
+          zone: 'example.com'
           target: 'country'
           value: 'US'
           mode: 'challenge'
           notes: 'Example - Challenge US Country'
           
-    - name: Updating mode/notes CF Access Rule (Search By Target and Value)
+    - name: Updating Access Rule (User)
       ngenen.cloudflare_secops.access_rule:
         email: '{{ email }}'
         token: '{{ token }}'
         state: update
+        context: user
         params:
           target: 'ip'
           value: '1.2.3.4'
           mode: 'challenge'
           notes: 'Updated to challenge'
 
-    - name: Deleting CF Access Rule (Search By Target and Value) - IP
+    - name: Deleting Access Rule (Zone)
       ngenen.cloudflare_secops.access_rule:
         email: '{{ email }}'
         token: '{{ token }}'
         state: absent
+        context: zone
         params:
+          zone: 'example.com'
           target: 'ip'
           value: '1.2.3.4'
-
-    - name: Deleting CF Access Rule (Search By Target and Value) - Country
-      ngenen.cloudflare_secops.access_rule:
-        email: '{{ email }}'
-        token: '{{ token }}'
-        state: absent
-        params:
-          target: 'country'
-          value: 'US'
 ```
 
 ### Required Python libraries
