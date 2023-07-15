@@ -1,4 +1,6 @@
 
+import traceback
+
 try:
     import CloudFlare
 except ImportError:

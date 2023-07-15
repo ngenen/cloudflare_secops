@@ -1,6 +1,6 @@
 namespace: ngenen
 name: cloudflare_secops
-version: 1.0.2
+version: 1.0.3
 readme: README.md
 authors:
 - Nicolás Genen <ngenen@gmail.com>
