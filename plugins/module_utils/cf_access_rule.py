@@ -5,102 +5,110 @@
 # GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-import traceback
-from ansible.module_utils.basic import missing_required_lib
-
-try:
-    import CloudFlare
-except ImportError:
-    HAS_CLOUDFLARE_LIBRARY = False
-    CLOUDFLARE_LIBRARY_IMPORT_ERROR = traceback.format_exc()
-else:
-    HAS_CLOUDFLARE_LIBRARY = True
-    CLOUDFLARE_LIBRARY_IMPORT_ERROR = None
+from ansible_collections.ngenen.cloudflare_secops.plugins.module_utils.cf_base import CFBase, CloudFlare
 
 
-class CFAccessRule:
-    def __init__(self, module_ref, email, key):
-        if not HAS_CLOUDFLARE_LIBRARY:
-            module_ref.fail_json(
-                msg=missing_required_lib('CloudFlare'),
-                exception=CLOUDFLARE_LIBRARY_IMPORT_ERROR)
+class CFAccessRule(CFBase):
+    def __init__(self, module):
+        super().__init__(module)
+        self.context = self.params['context']
+        self.zone_id = None
+        self.rules = None
 
-        self.__cf = CloudFlare.CloudFlare(email=email, key=key)
-        ok, self.__account_id = self._get_account_id()
-        if not ok:
-            raise Exception("Unable to gather account information, please check your credentials.")
+    def initialize(self):
+        super().initialize()
 
-    def _get_account_id(self):
-        try:
-            return True, self.__cf.accounts()[0]['id']
-        except CloudFlare.exceptions.CloudFlareError as err:
-            return False, err
+        if self.context == 'account':
+            self.rules = self.api.accounts.firewall.access_rules.rules
+        elif self.context == 'zone':
+            self.rules = self.api.zones.firewall.access_rules.rules
+            try:
+                zone_name = self.action_params['zone']
+                zones = self.api.zones(params={'name': zone_name})
+                if zones:
+                    self.zone_id = zones[0]['id']
+                else:
+                    raise Exception('The specified zone does not exist.')
+            except KeyError:
+                raise Exception('You need to specify a zone name')
+        elif self.context == 'user':
+            self.rules = self.api.user.firewall.access_rules.rules
 
-    def account_rule_add(self, data):
+    def add_rule(self):
         post_data = {
             'configuration': {
-                'target': data['params']['target'],
-                'value': data['params']['value'],
+                'target': self.action_params['target'],
+                'value': self.action_params['value'],
             },
-            'mode': data['params']['mode'],
-            'notes': data['params']['notes'],
+            'mode': self.action_params['mode'],
+            'notes': self.action_params['notes'],
         }
 
         try:
-            return True, self.__cf.accounts.firewall.access_rules.rules.post(self.__account_id, data=post_data)
+            if self.context == 'account':
+                return True, self.rules.post(self.account_id, data=post_data)
+            elif self.context == 'zone':
+                return True, self.rules.post(self.zone_id, data=post_data)
+            else:
+                return True, self.rules.post(data=post_data)
         except CloudFlare.exceptions.CloudFlareError as err:
             return False, err
 
-    def _search_rule(self, data):
-        target = data['params']['target']
-        value = data['params']['value']
-        ok, rules = self.account_rule_list()
-        if not ok:
-            return False, rules
-
-        rule_id = ''
-        for rule in rules:
-            if rule['configuration']['target'] == target and rule['configuration']['value'] == value:
-                rule_id = rule['id']
-                break
-
-        if rule_id:
-            return True, rule_id
-        else:
-            return False, 'Unable to locate rule'
-
-    def account_rule_delete(self, data):
-        ok, rule_id = self._search_rule(data)
+    def delete_rule(self):
+        ok, rule_id = self.__search_rule()
         if not ok:
             return False, rule_id
 
         try:
-            return True, self.__cf.accounts.firewall.access_rules.rules.delete(self.__account_id, rule_id)
+            if self.context == 'account':
+                return True, self.rules.delete(self.account_id, rule_id)
+            elif self.context == 'zone':
+                return True, self.rules.delete(self.zone_id, rule_id)
+            else:
+                return True, self.rules.delete(rule_id)
         except CloudFlare.exceptions.CloudFlareError as err:
-            return False, err
+            return False, 'Unable to delete rule: Error: %s' % err
 
-    def account_rule_update(self, data):
-        ok, rule_id = self._search_rule(data)
+    def __search_rule(self):
+        target = self.action_params['target']
+        value = self.action_params['value']
+
+        try:
+            if self.context == 'account':
+                rules = self.rules(self.account_id)
+            elif self.context == 'zone':
+                rules = self.rules(self.zone_id)
+            else:
+                rules = self.rules()
+        except CloudFlare.exceptions.CloudFlareError as err:
+            return False, 'Unable to fetch rules. Error: %s' % err
+
+        for rule in rules:
+            if rule['configuration']['target'] == target and rule['configuration']['value'] == value:
+                return True, rule['id']
+
+        return False, 'Unable to locate the rule, please check search criteria'
+
+    def update_rule(self):
+        ok, rule_id = self.__search_rule()
         if not ok:
             return False, rule_id
 
         update_data = {
             'configuration': {
-                'target': data['params']['target'],
-                'value': data['params']['value'],
+                'target': self.action_params['target'],
+                'value': self.action_params['value'],
             },
-            'mode': data['params']['mode'],
-            'notes': data['params']['notes'],
+            'mode': self.action_params['mode'],
+            'notes': self.action_params['notes'],
         }
 
         try:
-            return True, self.__cf.accounts.firewall.access_rules.rules.patch(self.__account_id, rule_id,
-                                                                              data=update_data)
+            if self.context == 'account':
+                return True, self.rules.patch(self.account_id, rule_id, data=update_data)
+            elif self.context == 'zone':
+                return True, self.rules.patch(self.zone_id, rule_id, data=update_data)
+            else:
+                return True, self.rules.patch(rule_id, data=update_data)
         except CloudFlare.exceptions.CloudFlareError as err:
-            return False, err
-
-    def account_rule_list(self):
-        try:
-            return True, self.__cf.accounts.firewall.access_rules.rules(self.__account_id)
-        except CloudFlare.exceptions.CloudFlareError as err:
-            return False, err
+            return False, 'Unable to update the rule. Error: %s' % err

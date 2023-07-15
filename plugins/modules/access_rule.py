@@ -55,7 +55,7 @@ EXAMPLES = r'''
       value: '1.2.3.4'
       mode: 'block'
       notes: 'Example IP Block'
-      
+
 - name: Updating the mode and notes for a rule that is searched by target and value combination.
   ngenen.cloudflare_secops.access_rule:
     email: '{{ email }}'
@@ -83,13 +83,12 @@ def main():
     fields.update(dict(
         params=dict(required=False, type="dict"),
         state=dict(type='str', default='present', choices=['absent', 'present', 'update']),
+        context=dict(type='str', default='account', choices=['zone', 'account', 'user'])
     ))
 
     module = AnsibleModule(argument_spec=fields)
 
     # Global Parameters
-    email = module.params['email']
-    token = module.params['token']
     state = module.params['state']
 
     result = dict(
@@ -98,13 +97,15 @@ def main():
         msg=''
     )
 
+    cf = CFAccessRule(module)
+
     try:
-        cfr = CFAccessRule(module, email, token)
+        cf.initialize()
     except Exception as err:
         module.fail_json(msg=str(err))
 
     if state == 'present':
-        ok, r = cfr.account_rule_add(module.params)
+        ok, r = cf.add_rule()
         if not ok:
             result['msg'] = cf_handle_errors(module, r)
         else:
@@ -112,7 +113,7 @@ def main():
             result['msg'] = 'A new account rule has been generated with id %s' % r['id']
 
     elif state == 'absent':
-        ok, r = cfr.account_rule_delete(module.params)
+        ok, r = cf.delete_rule()
         if not ok:
             result['msg'] = cf_handle_errors(module, r)
         else:
@@ -120,7 +121,7 @@ def main():
             result['msg'] = 'The rule id %s has been deleted.' % r['id']
 
     elif state == 'update':
-        ok, r = cfr.account_rule_update(module.params)
+        ok, r = cf.update_rule()
         if not ok:
             result['msg'] = cf_handle_errors(module, r)
         else:
